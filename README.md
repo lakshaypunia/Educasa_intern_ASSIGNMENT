@@ -1,5 +1,7 @@
 # School Management API
 
+**Live API:** `https://educasa-intern-assignment.vercel.app`
+
 A RESTful API built with **Node.js**, **TypeScript**, **Express.js**, and **MySQL** to manage school data. Supports adding schools and retrieving them sorted by proximity to any user-specified location using the Haversine formula.
 
 ---
@@ -319,18 +321,25 @@ The collection includes:
 
 ## Deployment
 
+The API is deployed on **Vercel** at:
+
+```
+https://educasa-intern-assignment.vercel.app
+```
+
+### Deploy your own
+
 1. Push the repo to GitHub
-2. Create a new service on [Railway](https://railway.app) or [Render](https://render.com) and connect the repo
-3. Set the following environment variables on the hosting platform:
+2. Go to [vercel.com](https://vercel.com) → **Add New Project** → import the repo
+3. Set the following environment variables in **Vercel → Settings → Environment Variables**:
 
 ```
-PORT=3000
-DB_ENV=aiven
-AIVEN_DB_HOST=...
-AIVEN_DB_PORT=...
-AIVEN_DB_USER=...
-AIVEN_DB_PASSWORD=...
-AIVEN_DB_NAME=...
+DB_ENV          = aiven
+AIVEN_DB_HOST   = your-host.aivencloud.com
+AIVEN_DB_PORT   = your-port
+AIVEN_DB_USER   = avnadmin
+AIVEN_DB_PASSWORD = your-password
+AIVEN_DB_NAME   = defaultdb
 ```
 
-4. The platform will run `npm start` automatically after `npm run build`
+4. Click **Deploy** — Vercel runs `tsc` and serves `server.ts` as a serverless function

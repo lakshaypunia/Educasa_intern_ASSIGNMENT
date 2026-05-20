@@ -7,8 +7,8 @@
   "variable": [
     {
       "key": "baseUrl",
-      "value": "http://localhost:3000",
-      "description": "Change this to your deployed API URL when testing the live server"
+      "value": "https://educasa-intern-assignment.vercel.app",
+      "description": "Live deployed URL. Change to http://localhost:3000 for local testing."
     }
   ],
   "item": [
