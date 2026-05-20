@@ -5,6 +5,9 @@ web_modules/
 
 # Environment variables and secrets (keeps your cloud MySQL password safe)
 .env
+
+# Aiven SSL CA certificate (treat like a credential — never commit)
+ca.pem
 .env.local
 .env.development.local
 .env.test.local
