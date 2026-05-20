@@ -31,12 +31,17 @@ app.get('/health', (_req, res) => {
 // ─── Global error handler (must be last) ──────────────────────
 app.use(errorHandler);
 
-// ─── Start ────────────────────────────────────────────────────
-app.listen(PORT, async () => {
-  console.log(`\n[SERVER] Running on http://localhost:${PORT}`);
-  console.log(`[SERVER] DB_ENV = ${process.env.DB_ENV || 'local'}\n`);
-  await testConnection().catch((err) => {
-    console.error('[SERVER] Failed to connect to database:', err.message);
-    process.exit(1);
+// ─── Start (skipped on Vercel — serverless handles invocation) ──
+if (!process.env.VERCEL) {
+  app.listen(PORT, async () => {
+    console.log(`\n[SERVER] Running on http://localhost:${PORT}`);
+    console.log(`[SERVER] DB_ENV = ${process.env.DB_ENV || 'local'}\n`);
+    await testConnection().catch((err) => {
+      console.error('[SERVER] Failed to connect to database:', err.message);
+      process.exit(1);
+    });
   });
-});
+}
+
+// Export for Vercel serverless runtime
+export default app;

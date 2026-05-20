@@ -32,5 +32,8 @@ Thumbs.db
 *.sln
 *.swp
 
-plan.md 
+plan.md
 projectrequirment.txt
+
+# Local-only scripts (not needed in repo)
+seed.ts
