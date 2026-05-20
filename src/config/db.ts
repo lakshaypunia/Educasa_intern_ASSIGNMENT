@@ -21,9 +21,17 @@ const localConfig: mysql.PoolOptions = {
 // Aiven provides a CA certificate to verify their SSL — download it from:
 // Aiven Console → your MySQL service → Connection info → Download CA cert → save as ca.pem in project root
 const caCertPath = path.join(__dirname, '../../ca.pem');
-const sslOptions = fs.existsSync(caCertPath)
+const hasCert = fs.existsSync(caCertPath);
+
+if (hasCert) {
+  console.log('[DB] SSL: CA certificate found (ca.pem) — rejectUnauthorized: TRUE (full verification)');
+} else {
+  console.log('[DB] SSL: CA certificate not found — rejectUnauthorized: FALSE (encrypted but no cert verification)');
+}
+
+const sslOptions = hasCert
   ? { ca: fs.readFileSync(caCertPath), rejectUnauthorized: true }
-  : { rejectUnauthorized: false }; // fallback if ca.pem not present
+  : { rejectUnauthorized: false };
 
 const aivenConfig: mysql.PoolOptions = {
   host: process.env.AIVEN_DB_HOST,
