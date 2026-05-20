@@ -6,11 +6,14 @@ A RESTful API built with **Node.js**, **TypeScript**, **Express.js**, and **MySQ
 
 ## Features
 
-- `POST /addSchool` — Add a new school with full input validation
+- `POST /addSchool` — Add a new school with full Zod input validation
 - `GET /listSchools` — Fetch all schools sorted by distance from user's coordinates
+- `GET /health` — Health check endpoint for deployment verification
 - Dual database support — switch between **local MySQL** and **Aiven Cloud MySQL** via a single env variable
+- SSL auto-detection — uses full cert verification when `ca.pem` is present, encrypted fallback otherwise
 - Structured JSON responses with proper HTTP status codes
 - TypeScript throughout with strict mode enabled
+- Global error handler — no stack traces exposed to clients
 
 ---
 
@@ -42,7 +45,7 @@ A RESTful API built with **Node.js**, **TypeScript**, **Express.js**, and **MySQ
 school_management_api/
 ├── src/
 │   ├── config/
-│   │   └── db.ts                  # MySQL connection pool (local + Aiven)
+│   │   └── db.ts                  # MySQL connection pool (local + Aiven, SSL auto-detect)
 │   ├── controllers/
 │   │   └── school.controller.ts   # addSchool + listSchools handlers
 │   ├── middleware/
@@ -55,8 +58,10 @@ school_management_api/
 │   └── utils/
 │       └── distance.ts            # Haversine formula
 ├── server.ts                      # App entry point
-├── schema.sql                     # Database migration script
+├── migrate.ts                     # Database migration script (run via npm run migrate)
+├── schema.sql                     # Raw SQL for manual migration
 ├── .env.example                   # Environment variable template
+├── School_Management_API.postman_collection.json
 ├── PLAN.md                        # Full implementation plan
 └── README.md                      # This file
 ```
@@ -75,41 +80,52 @@ npm install
 
 ### 2. Configure environment variables
 
-Copy the example file and fill in your values:
-
 ```bash
 cp .env.example .env
 ```
 
-Open `.env` and set the variables for your chosen database (see [Environment Variables](#environment-variables) section below).
+Open `.env` and fill in your values (see [Environment Variables](#environment-variables) below). You can fill in both local and Aiven credentials at once — switching between them is just changing `DB_ENV`.
 
 ### 3. Run the database migration
 
-#### Local MySQL
-
 ```bash
-mysql -u root -p < schema.sql
+npm run migrate
 ```
 
-This creates the `school_management` database and the `schools` table.
+This creates the `schools` table on whichever database is currently active in `DB_ENV`. Run it once for local and once for Aiven (by flipping `DB_ENV` between runs).
 
-#### Aiven MySQL
+> For local MySQL, the `school_management` database must exist first. Create it with:
+> ```bash
+> mysql -u root -p < schema.sql
+> ```
 
-Log in to your [Aiven Console](https://console.aiven.io), open your MySQL service, go to **Query editor** or connect via CLI:
-
-```bash
-mysql --host=<AIVEN_DB_HOST> --port=<AIVEN_DB_PORT> --user=avnadmin --password=<AIVEN_DB_PASSWORD> --ssl-mode=REQUIRED defaultdb < schema.sql
-```
-
-> On Aiven the database already exists as `defaultdb`, so the `CREATE DATABASE` line is skipped automatically.
-
-### 4. Run the development server
+### 4. Start the development server
 
 ```bash
 npm run dev
 ```
 
-The server starts at `http://localhost:3000` (or the PORT you set).
+The server starts at `http://localhost:3000`. On startup you'll see:
+
+```
+[DB] SSL: CA certificate not found — rejectUnauthorized: FALSE (encrypted but no cert verification)
+
+[SERVER] Running on http://localhost:3000
+[SERVER] DB_ENV = aiven
+
+[DB] Connected to AIVEN MySQL at mysql-xxxx.aivencloud.com:12302
+```
+
+---
+
+## Available Scripts
+
+| Script | Description |
+|---|---|
+| `npm run dev` | Start dev server with hot reload |
+| `npm run build` | Compile TypeScript → `dist/` |
+| `npm start` | Run compiled production build |
+| `npm run migrate` | Create `schools` table on the active database |
 
 ---
 
@@ -133,14 +149,24 @@ The server starts at `http://localhost:3000` (or the PORT you set).
 
 ### Switching between local and Aiven
 
-Just change one line in your `.env`:
+Change one line in `.env`:
 
 ```env
 DB_ENV=local    # use local MySQL
 DB_ENV=aiven    # use Aiven Cloud MySQL
 ```
 
-No other changes needed — both sets of credentials can coexist in `.env`.
+Both sets of credentials can live in `.env` simultaneously — no commenting/uncommenting needed.
+
+### Aiven SSL (optional hardening)
+
+By default the Aiven connection is encrypted but skips certificate verification. For full verification, download the CA cert from **Aiven Console → your MySQL service → Connection info → Download CA cert** and save it as `ca.pem` in the project root. The app detects it automatically on next start:
+
+```
+[DB] SSL: CA certificate found (ca.pem) — rejectUnauthorized: TRUE (full verification)
+```
+
+`ca.pem` is gitignored — never commit it.
 
 ---
 
@@ -181,7 +207,7 @@ Content-Type: application/json
     "name": "Green Valley School",
     "address": "123 Main Street, Delhi",
     "latitude": 28.6139,
-    "longitude": 77.2090
+    "longitude": 77.209
   }
 }
 ```
@@ -192,7 +218,8 @@ Content-Type: application/json
   "success": false,
   "message": "Validation failed",
   "errors": [
-    { "field": "latitude", "message": "Number must be >= -90" }
+    { "field": "name", "message": "Name is required" },
+    { "field": "latitude", "message": "Latitude must be between -90 and 90" }
   ]
 }
 ```
@@ -224,8 +251,18 @@ GET /listSchools?latitude=28.6139&longitude=77.2090
       "name": "Green Valley School",
       "address": "123 Main Street, Delhi",
       "latitude": 28.6139,
-      "longitude": 77.2090,
-      "distance_km": 0.0
+      "longitude": 77.209,
+      "created_at": "2026-05-20T11:58:36.000Z",
+      "distance_km": 0
+    },
+    {
+      "id": 3,
+      "name": "Delhi Public School",
+      "address": "Sector 45, Noida",
+      "latitude": 28.5706,
+      "longitude": 77.3216,
+      "created_at": "2026-05-20T11:58:47.000Z",
+      "distance_km": 12
     },
     {
       "id": 2,
@@ -233,7 +270,8 @@ GET /listSchools?latitude=28.6139&longitude=77.2090
       "address": "456 Park Road, Gurgaon",
       "latitude": 28.4595,
       "longitude": 77.0266,
-      "distance_km": 24.7
+      "created_at": "2026-05-20T11:58:47.000Z",
+      "distance_km": 24.74
     }
   ]
 }
@@ -241,9 +279,23 @@ GET /listSchools?latitude=28.6139&longitude=77.2090
 
 ---
 
+### GET `/health`
+
+Verify the server is running.
+
+```http
+GET /health
+```
+
+```json
+{ "success": true, "message": "Server is running" }
+```
+
+---
+
 ## Distance Calculation
 
-Uses the **Haversine formula** to compute great-circle distance between two GPS coordinates. Results are in kilometres and rounded to 2 decimal places.
+Uses the **Haversine formula** to compute great-circle distance between two GPS coordinates. Results are in kilometres rounded to 2 decimal places.
 
 ```
 a = sin²(Δlat/2) + cos(lat1) × cos(lat2) × sin²(Δlon/2)
@@ -253,17 +305,32 @@ distance = 6371 × c
 
 ---
 
-## Build for Production
+## Postman Collection
 
-```bash
-npm run build      # compiles TypeScript → dist/
-npm start          # runs dist/server.js
-```
+Import `School_Management_API.postman_collection.json` via **Postman → Import → Upload File**.
+
+The collection includes:
+- `POST /addSchool` with success and validation error examples
+- `GET /listSchools` with proximity-sorted response example
+- `GET /health`
+- A `{{baseUrl}}` variable — set it to `http://localhost:3000` for local or your deployed URL for production
 
 ---
 
-## Postman Collection
+## Deployment
 
-A Postman collection with example requests for both endpoints is available in the repository as `School_Management_API.postman_collection.json`.
+1. Push the repo to GitHub
+2. Create a new service on [Railway](https://railway.app) or [Render](https://render.com) and connect the repo
+3. Set the following environment variables on the hosting platform:
 
-Import it via **Postman → Import → Upload File**.
+```
+PORT=3000
+DB_ENV=aiven
+AIVEN_DB_HOST=...
+AIVEN_DB_PORT=...
+AIVEN_DB_USER=...
+AIVEN_DB_PASSWORD=...
+AIVEN_DB_NAME=...
+```
+
+4. The platform will run `npm start` automatically after `npm run build`

@@ -6,7 +6,8 @@
   "scripts": {
     "dev": "tsx watch server.ts",
     "build": "tsc",
-    "start": "node dist/server.js"
+    "start": "node dist/server.js",
+    "migrate": "tsx migrate.ts"
   },
   "keywords": ["nodejs", "express", "mysql", "typescript", "school-management"],
   "author": "",
